@@ -14,7 +14,7 @@ const int screenHeight = 320;
 
 // Oh my gosh, C, I just want to read a binary file
 // https://codereview.stackexchange.com/questions/137818/standard-way-of-reading-file-contents-to-a-buffer
-const uint8_t *const read_file(const char *const path, size_t *const out_length) {
+const uint8_t *read_file(const char *const path, size_t *const out_length) {
     FILE *file;
     errno_t ret = fopen_s(&file, path, "rb");
     if (ret != 0 || !file) {
@@ -50,12 +50,6 @@ const uint8_t *const read_file(const char *const path, size_t *const out_length)
     }
 
     temp = realloc(buffer, file_size + 1);
-    if (!temp) {
-        free(buffer);
-        fprintf(stderr, "Failed to allocate memory\n");
-        exit(1);
-    }
-
     buffer = temp;
     buffer[file_size] = '\0';
 
@@ -67,7 +61,6 @@ const uint8_t *const read_file(const char *const path, size_t *const out_length)
 
     return buffer;
 }
-
 void Draw(struct Canvas *canvas) {
     ClearBackground(BLACK);
     DrawCanvas(canvas);
@@ -105,6 +98,26 @@ int main(int argc, char *argv[]) {
         BeginDrawing();
             Draw(chip8->canvas);
         EndDrawing();
+
+        chip8->keypad[0x1] = IsKeyDown(KEY_ONE);
+        chip8->keypad[0x2] = IsKeyDown(KEY_TWO);
+        chip8->keypad[0x3] = IsKeyDown(KEY_THREE);
+        chip8->keypad[0xC] = IsKeyDown(KEY_FOUR);
+
+        chip8->keypad[0x4] = IsKeyDown(KEY_Q);
+        chip8->keypad[0x5] = IsKeyDown(KEY_W);
+        chip8->keypad[0x6] = IsKeyDown(KEY_E);
+        chip8->keypad[0xD] = IsKeyDown(KEY_R);
+
+        chip8->keypad[0x7] = IsKeyDown(KEY_A);
+        chip8->keypad[0x8] = IsKeyDown(KEY_S);
+        chip8->keypad[0x9] = IsKeyDown(KEY_D);
+        chip8->keypad[0xE] = IsKeyDown(KEY_F);
+
+        chip8->keypad[0xA] = IsKeyDown(KEY_Z);
+        chip8->keypad[0x0] = IsKeyDown(KEY_X);
+        chip8->keypad[0xB] = IsKeyDown(KEY_C);
+        chip8->keypad[0xF] = IsKeyDown(KEY_V);
 
         EmulateCycle(chip8);
     }

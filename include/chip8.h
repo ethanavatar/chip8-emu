@@ -10,6 +10,7 @@ struct Chip8 {
     uint16_t I;
     
     bool paused;
+    bool waiting_for_key;
     bool draw_flag;
 
     uint8_t delay_timer;

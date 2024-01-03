@@ -94,6 +94,20 @@ void LoadROM(struct Chip8 *chip8, uint8_t* rom, int size) {
 }
 
 void EmulateCycle(struct Chip8 *chip8) {
+
+    if (chip8->waiting_for_key) {
+        for (int i = 0; i < 16; i++) {
+            if (chip8->keypad[i]) {
+                chip8->V[chip8->waiting_for_key - 1] = i;
+                chip8->waiting_for_key = false;
+                chip8->paused = false;
+                break;
+            }
+        }
+
+        return;
+    }
+
     if (chip8->paused) {
         return;
     }
@@ -157,8 +171,8 @@ static void jp(struct Chip8 *chip8, uint16_t nnn) {
 // 2nnn - CALL addr
 // Call subroutine at nnn.
 static void call(struct Chip8 *chip8, uint16_t nnn) {
-    chip8->stack[chip8->sp++] = chip8->pc;
-    chip8->pc = nnn;
+    chip8->stack[++chip8->sp] = chip8->pc;
+    jp(chip8, nnn);
 }
 
 // 3xkk - SE Vx, byte
@@ -226,40 +240,44 @@ static void xor(struct Chip8 *chip8, uint8_t x, uint8_t y) {
 // Set Vx = Vx + Vy, set VF = carry.
 static void add1(struct Chip8 *chip8, uint8_t x, uint8_t y) {
     uint16_t sum = chip8->V[x] + chip8->V[y];
-    chip8->V[0xF] = sum > 0xFF;
     chip8->V[x] = sum & 0xFF;
+    chip8->V[0xF] = sum > 0xFF;
 }
 
 // 8xy5 - SUB Vx, Vy
 // Set Vx = Vx - Vy, set VF = NOT borrow.
 static void sub(struct Chip8 *chip8, uint8_t x, uint8_t y) {
-    chip8->V[0xF] = chip8->V[x] > chip8->V[y];
+    uint8_t underflow = chip8->V[x] < chip8->V[y];
     chip8->V[x] -= chip8->V[y];
+    chip8->V[0xF] = underflow == 0; 
 }
 
 // 8xy6 - SHR Vx {, Vy}
-// Set Vx = Vx SHR 1.
+// Set Vx = Vx SHR 1, set VF to the bit that was shifted out.
 static void shr(struct Chip8 *chip8, uint8_t x, uint8_t y) {
     (void) y;
 
-    chip8->V[0xF] = chip8->V[x] & 0x1;
+    uint8_t carry = chip8->V[x] & 0x1;
     chip8->V[x] >>= 1;
+    chip8->V[0xF] = carry;
 }
 
 // 8xy7 - SUBN Vx, Vy
 // Set Vx = Vy - Vx, set VF = NOT borrow.
 static void subn(struct Chip8 *chip8, uint8_t x, uint8_t y) {
-    chip8->V[0xF] = chip8->V[y] > chip8->V[x];
+    uint8_t underflow = chip8->V[y] < chip8->V[x];
     chip8->V[x] = chip8->V[y] - chip8->V[x];
+    chip8->V[0xF] = underflow == 0;
 }
 
 // 8xyE - SHL Vx {, Vy}
-// Set Vx = Vx SHL 1.
+// Set Vx = Vx SHL 1. Set VF to the bit that was shifted out.
 static void shl(struct Chip8 *chip8, uint8_t x, uint8_t y) {
     (void) y;
 
-    chip8->V[0xF] = chip8->V[x] >> 7;
+    uint8_t carry = chip8->V[x] >> 7;
     chip8->V[x] <<= 1;
+    chip8->V[0xF] = carry;
 }
 
 // 9xy0 - SNE Vx, Vy
@@ -267,7 +285,8 @@ static void shl(struct Chip8 *chip8, uint8_t x, uint8_t y) {
 static void sne1(struct Chip8 *chip8, uint8_t x, uint8_t y) {
     if (chip8->V[x] != chip8->V[y]) {
         chip8->pc += 2;
-    }}
+    }
+}
 
 // Annn - LD I, addr
 // Set I = nnn.
@@ -319,12 +338,8 @@ static void ld3(struct Chip8 *chip8, uint8_t x) {
 // Fx0A - LD Vx, K
 // Wait for a key press, store the value of the key in Vx.
 static void ld4(struct Chip8 *chip8, uint8_t x) {
-    for (int i = 0; i < 16; i++) {
-        if (chip8->keypad[i]) {
-            chip8->V[x] = i;
-            break;
-        }
-    }
+    chip8->paused = true;
+    chip8->waiting_for_key = true;
 }
 
 // Fx15 - LD DT, Vx
