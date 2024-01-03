@@ -26,7 +26,7 @@ const uint8_t chip8_fontset[80] = {
     0xF0, 0x80, 0xF0, 0x80, 0x80  // F;
 };
 
-const int clock_speed = 10;
+const int clock_speed = 15;
 const int screen_width = 64;
 const int screen_height = 32;
 
